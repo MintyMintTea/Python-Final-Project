@@ -1,6 +1,15 @@
 # Final Project
 # Contributers: Simon Elizondo
 
+#Credits: 
+#   Walkthrough provided by Coding With Russ 
+#   https://youtu.be/Ongc4EVqRjo
+#   https://github.com/russs123/Platformer
+
+#   Sprites Provided by Tarkan809
+#   https://www.spriters-resource.com/fullview/85390/
+
+
 import pygame
 from pygame.locals import *
 
