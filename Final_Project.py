@@ -1,5 +1,5 @@
 # Final Project
-# Contributers: Simon Elizondo
+# Contributers: Simon Elizondo, Edwin Lozano
 
 #Credits: 
 #   Walkthrough provided by Coding With Russ 
@@ -12,7 +12,12 @@
 
 import pygame
 from pygame.locals import *
+from pygame import mixer
+import pickle
+from os import path
 
+pygame.mixer.pre_init(44100,-16,2,512)
+mixer.init()
 pygame.init()
 
 clock = pygame.time.Clock()
@@ -25,16 +30,57 @@ screen_hight = 800
 screen = pygame.display.set_mode((screen_width,screen_hight))
 pygame.display.set_caption('Final Project')
 
+
+#define font
+font = pygame.font.SysFont('Bauhaus 93', 70)
+font_score = pygame.font.SysFont('Bauhaus 93', 30)
+
 #define game variables
 tile_size = 50
 gameover = 0
 main_menu = True
+level = 1
+max_levels = 9
+score = 0
 
-
+#define colors
+white = (255,255,255)
+red = (255,0,0)
 #loads images
 bg_img = pygame.image.load('Assets/sky.jpg')                    #Loads Background image
 restart_img = pygame.image.load("Assets/respawn.png")
 start_img = pygame.image.load("Assets/start_btn.jpg")
+
+#load sounds
+pygame.mixer.music.load("Assets/Sweden.mp3")
+pygame.mixer.music.play(-1,0.0,3000)
+
+emerald_fx = pygame.mixer.Sound("Assets/orb.mp3")
+emerald_fx.set_volume(0.5)
+
+dead_fx = pygame.mixer.Sound("Assets/hurt.mp3")
+dead_fx.set_volume(0.5)
+
+
+
+def draw_text(text, font,text_col,x,y):
+    img = font.render(text,True,text_col)
+    screen.blit(img,(x,y))
+
+#fumction to reset level
+def reset_level(level):
+    player.reset(100, screen_hight - 130)
+    creeper_group.empty()
+    lava_group.empty()
+    exit_group.empty()
+
+    if path.exists(f'level{level}_data'):
+        pickle_in = open(f'level{level}_data','rb')
+        world_data = pickle.load(pickle_in)
+
+    world = World(world_data)
+
+    return world
 
 class Button():
     def __init__(self, x,y,image):
@@ -160,8 +206,13 @@ class Player():
             #check for collision with enemeies
             if pygame.sprite.spritecollide(self,creeper_group, False):
                 gameover = -1
+                dead_fx.play()
             if pygame.sprite.spritecollide(self,lava_group, False):
                 gameover = -1
+                dead_fx.play()
+            #check for collion with gate
+            if pygame.sprite.spritecollide(self,exit_group, False):
+                gameover = 1
 
 
             #update player coordiates
@@ -175,6 +226,7 @@ class Player():
 
         elif gameover == -1:
             self.image = self.dead_image
+            draw_text("Game Over!", font, red,(screen_width // 2) - 140, (screen_hight // 2) + 100)
 
             self.rect.y -= 5
         #Draws the player character on screen
@@ -235,9 +287,21 @@ class World():
                 if tile == 3:
                     creeper = Enemy(col_count * tile_size, row_count * tile_size)
                     creeper_group.add(creeper)
+                #if tile == 4:
+                #    platform = Plat(col_count * tile_size,row_count*tile_size)
+                #    platform_group.add(platform)
+                #if tile == 5:
+                #    platform = Plat(col_count * tile_size,row_count*tile_size)
+                #    platform_group.add(platform)
                 if tile == 6:
                     lava = Lava(col_count * tile_size, row_count * tile_size + (tile_size // 2))
                     lava_group.add(lava)
+                if tile == 7:
+                    emerald = Emerald(col_count * tile_size, row_count * tile_size + (tile_size // 2))
+                    emerald_group.add(emerald)
+                if tile == 8:
+                    exit = Exit(col_count * tile_size, row_count * tile_size - (tile_size // 5))
+                    exit_group.add(exit)
 
                 col_count += 1
             row_count += 1
@@ -246,9 +310,7 @@ class World():
         for tile in self.tile_list:
             screen.blit(tile[0],tile[1])
             pygame.draw.rect(screen,(255,255,255),tile[1],2)
-      
-            
-
+                 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self,x,y):
         pygame.sprite.Sprite.__init__(self)
@@ -266,6 +328,17 @@ class Enemy(pygame.sprite.Sprite):
         if abs(self.move_counter) > 50:
             self.move_direction *= -1
             self.move_counter *= -1
+
+#class Platform1(pygame.sprite.Sprite):
+#    def __init__(self,x,y):
+#        pygame.sprite.Sprite.__init__(self)
+#        img = pygame.image.load("Assets/platform.jpg")
+#        self.image = pygame.transform(img, (tile_size,tile_size // 2))
+#        self.rect = self.image.get_rect()
+#        self.rect.x = x
+#        self.rect.y = y
+
+
 class Lava(pygame.sprite.Sprite):
     def __init__(self,x,y):
         pygame.sprite.Sprite.__init__(self)
@@ -275,29 +348,44 @@ class Lava(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
 
-world_data = [
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], 
-[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 
-[1, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 1], 
-[1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 2, 2, 1], 
-[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 7, 0, 5, 0, 0, 0, 1], 
-[1, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 1], 
-[1, 7, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 
-[1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 
-[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 7, 0, 0, 0, 0, 1], 
-[1, 0, 2, 0, 0, 7, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 
-[1, 0, 0, 2, 0, 0, 4, 0, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 1], 
-[1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 1], 
-[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 
-[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 7, 0, 0, 0, 0, 2, 0, 1], 
-[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 
-[1, 2, 2, 2, 2, 2, 2, 2, 2, 6, 2, 6, 2, 6, 2, 2, 2, 2, 2, 1]
-]
+
+class Emerald(pygame.sprite.Sprite):
+    def __init__(self,x,y):
+        pygame.sprite.Sprite.__init__(self)
+        img = pygame.image.load("Assets/emerald.png")
+        self.image = pygame.transform.scale(img, (tile_size // 2, tile_size // 2))
+        self.rect = self.image.get_rect()
+        self.rect.center = (x,y)
+
+
+
+
+class Exit(pygame.sprite.Sprite):
+    def __init__(self,x,y):
+        pygame.sprite.Sprite.__init__(self)
+        img = pygame.image.load("Assets/gate.png")
+        self.image = pygame.transform.scale(img, (tile_size, tile_size))
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
 
 player = Player(100, screen_hight - 130)
 
 creeper_group = pygame.sprite.Group()
+platform_group = pygame.sprite.Group()
 lava_group = pygame.sprite.Group()
+emerald_group = pygame.sprite.Group()
+exit_group = pygame.sprite.Group()
+
+#creates dummy coin for showing the score
+score_coin = Emerald(tile_size //2, tile_size // 2)
+emerald_group.add(score_coin)
+
+
+#load in level data and create world
+if path.exists(f'level{level}_data'):
+    pickle_in = open(f'level{level}_data','rb')
+    world_data = pickle.load(pickle_in)
 
 world = World(world_data)
 
@@ -320,17 +408,49 @@ while run:
 
         if gameover == 0:
             creeper_group.update()
+            #update score
+            #check if coin has been called
+            if pygame.sprite.spritecollide(player, emerald_group, True):
+                score += 1
+                emerald_fx.play()
+            draw_text('X ' + str(score), font_score,white,tile_size-10,10)
+
         creeper_group.draw(screen)
+        platform_group.draw(screen)
         lava_group.draw(screen)
+        emerald_group.draw(screen)
+        exit_group.draw(screen)
 
         gameover = player.update(gameover)
 
         #the player has died
         if gameover == -1:
             if restart_button.draw():
-                player.reset(100, screen_hight - 130)
+                world_data = []
+                world = reset_level(level)
                 gameover = 0
+                score = 0
 
+        #if player beat level
+        if gameover == 1:
+            #reset game and go to next level
+            level += 1
+            if level <= max_levels:
+                #reset level
+                world_data = []
+                world = reset_level(level)
+                gameover = 0
+            else:
+                draw_text('YOU WIN!', font, red,(screen_width // 2) - 140, (screen_hight // 2) + 100)
+                #restart game
+                if restart_button.draw():
+                    level = 1
+                    world_data = []
+                    world = reset_level(level)
+                    gameover = 0
+                    score = 0
+                
+                
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
